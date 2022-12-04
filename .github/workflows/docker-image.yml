@@ -1,45 +1,22 @@
 name: This a workflow title
-on:
-  push:
-    branches:
-      - master
-    tags:
-      - "v*-api"
-  pull_request:
-    branches:
-      - "master"
-
+on: [push] # When pushing to any branch then run this action
+# Env variable
+env:
+  DOCKER_USER: ${{secrets.DOCKER_USERNAME}}
+  DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+  REPO_NAME: ${{secrets.REPO_NAME}}
 jobs:
-  deploy-docker-api:
-    runs-on: ubuntu-latest
-
+  push-image-to-docker-hub: # job name
+    runs-on: ubuntu-latest # runner name : (ubuntu latest version)
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: ghcr.io/thedatabaseme/api
-          flavor: latest=true
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-
-      - name: Login to image repository
-        if: github.ref_type == 'tag'
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: D:\3AINFO2\S1\Architecture et virtualisation\tp1-py\API2\Dockerfile
-          push: ${{ github.ref_type == 'tag' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+      - uses: actions/checkout@v2 # first action : checkout source code
+      - name: docker login
+        run: | # log into docker hub account
+          docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - name: Get current date # get the date of the build
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d--%M-%S')"
+      - name: Build the Docker image # push The image to the docker hub
+        run: docker build . --file Dockerfile --tag $DOCKER_USERNAME/$REPO_NAME:${{ steps.date.outputs.date }}
+      - name: Docker Push
+        run: docker push $DOCKER_USERNAME/$REPO_NAME:${{ steps.date.outputs.date }}
